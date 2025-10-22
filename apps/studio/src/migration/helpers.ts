@@ -88,15 +88,3 @@ export async function addUserSetting(
 
   await runner.query(query);
 }
-
-/**
- * Helper to create multiple user setting insertion migrations at once
- */
-export async function addUserSettings(
-  runner: QueryRunner,
-  settings: UserSettingConfig[]
-): Promise<void> {
-  for (const { key, options } of settings) {
-    await addUserSetting(runner, key, options);
-  }
-}
