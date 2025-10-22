@@ -1,4 +1,4 @@
-import { QueryRunner } from 'typeorm'
+import type { QueryRunner } from "typeorm";
 
 /**
  * Helper functions for database migrations
@@ -21,27 +21,25 @@ export enum UserSettingValueType {
  */
 export interface AddUserSettingOptions {
   /** Default value for all platforms */
-  defaultValue: string
+  defaultValue: string;
   /** Value type from UserSettingValueType enum */
-  valueType: UserSettingValueType
+  valueType: UserSettingValueType;
   /** Optional user value */
-  userValue?: string | null
+  userValue?: string | null;
   /** Optional Linux-specific default */
-  linuxDefault?: string
+  linuxDefault?: string;
   /** Optional Mac-specific default */
-  macDefault?: string
+  macDefault?: string;
   /** Optional Windows-specific default */
-  windowsDefault?: string
-  /** Use INSERT OR IGNORE instead of INSERT */
-  insertOrIgnore?: boolean
+  windowsDefault?: string;
 }
 
 /**
  * Setting configuration for batch operations
  */
 export interface UserSettingConfig {
-  key: string
-  options: AddUserSettingOptions
+  key: string;
+  options: AddUserSettingOptions;
 }
 
 /**
@@ -52,59 +50,43 @@ export async function addUserSetting(
   key: string,
   options: AddUserSettingOptions
 ): Promise<void> {
-  const {
+  let {
     defaultValue,
     valueType,
     userValue = null,
-    linuxDefault = '',
-    macDefault = '',
-    windowsDefault = '',
-    insertOrIgnore = false
-  } = options
+    linuxDefault = defaultValue,
+    macDefault = defaultValue,
+    windowsDefault = defaultValue,
+  } = options;
 
   // Validate required fields
   if (!key || defaultValue === undefined || valueType === undefined) {
-    throw new Error(`Missing required fields for user setting: key=${key}, defaultValue=${defaultValue}, valueType=${valueType}`)
+    throw new Error(
+      `Missing required fields for user setting: key=${key}, defaultValue=${defaultValue}, valueType=${valueType}`
+    );
   }
 
-  const insertClause = insertOrIgnore ? 'INSERT OR IGNORE' : 'INSERT'
+  const query = `
+    INSERT INTO user_setting(
+      key,
+      userValue,
+      defaultValue,
+      linuxDefault,
+      macDefault,
+      windowsDefault,
+      valueType
+    ) VALUES (
+      '${key}',
+      ${_.isNil(userValue) ? "NULL" : `'${userValue}'`},
+      '${defaultValue}',
+      '${linuxDefault}',
+      '${macDefault}',
+      '${windowsDefault}',
+      ${valueType}
+    )
+  `;
 
-  // Determine which columns to use based on provided fields
-  const hasUserValue = userValue !== null && userValue !== undefined
-  const hasPlatformDefaults = linuxDefault || macDefault || windowsDefault
-
-  let query: string
-
-  if (hasPlatformDefaults || hasUserValue) {
-    // Full format with all columns
-    query = `
-      ${insertClause} INTO user_setting(
-        key,
-        userValue,
-        defaultValue,
-        linuxDefault,
-        macDefault,
-        windowsDefault,
-        valueType
-      ) VALUES (
-        '${key}',
-        ${hasUserValue ? `'${userValue}'` : 'NULL'},
-        '${defaultValue}',
-        '${linuxDefault}',
-        '${macDefault}',
-        '${windowsDefault}',
-        ${valueType}
-      )
-    `
-  } else {
-    // Simple format with just key, defaultValue, and valueType
-    query = `
-      ${insertClause} INTO user_setting(key, defaultValue, valueType)
-      VALUES ('${key}', '${defaultValue}', ${valueType})
-    `
-  }
-
-  await runner.query(query)
+  await runner.query(query);
 }
 
 /**
@@ -115,6 +97,6 @@ export async function addUserSettings(
   settings: UserSettingConfig[]
 ): Promise<void> {
   for (const { key, options } of settings) {
-    await addUserSetting(runner, key, options)
+    await addUserSetting(runner, key, options);
   }
 }
