@@ -7,13 +7,13 @@ import type { QueryRunner } from "typeorm";
 /**
  * Value types for user settings
  */
-export enum UserSettingValueType {
-  string = 0,
-  int = 1,
-  float = 2,
-  object = 3,
-  array = 4,
-  boolean = 5,
+const UserSettingValueType = {
+  string: 0,
+  int: 1,
+  float: 2,
+  object: 3,
+  array: 4,
+  boolean: 5,
 }
 
 /**
@@ -22,8 +22,7 @@ export enum UserSettingValueType {
 export interface AddUserSettingOptions {
   /** Default value for all platforms */
   defaultValue: string;
-  /** Value type from UserSettingValueType enum */
-  valueType: UserSettingValueType;
+  valueType: keyof typeof UserSettingValueType;
   /** Optional user value */
   userValue?: string | null;
   /** Optional Linux-specific default */
@@ -82,7 +81,7 @@ export async function addUserSetting(
       '${linuxDefault}',
       '${macDefault}',
       '${windowsDefault}',
-      ${valueType}
+      ${UserSettingValueType[valueType]}
     )
   `;
 
