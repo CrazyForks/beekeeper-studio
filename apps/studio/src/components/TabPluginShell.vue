@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="isCommunity && tab.context.pluginId === 'bks-ai-shell'"
+    v-if="isCommunity && tab.context.pluginId.startsWith('bks-')"
     class="tab-upsell-wrapper"
   >
     <upsell-content />
@@ -79,6 +79,7 @@
       </div>
     </div>
     <query-editor-status-bar
+      v-if="showStatusBarUI"
       v-model="selectedResult"
       :results="results"
       :running="isRunningQuery"
@@ -152,6 +153,7 @@ export default Vue.extend({
       focusingElement: "table",
       query: "",
       isTablePanelVisible: false,
+      showStatusBarUI: true,
     };
   },
   computed: {
@@ -174,7 +176,7 @@ export default Vue.extend({
       return this.$plugin.buildUrlFor(this.tab.context.pluginId, tabType.entry);
     },
     shouldInitialize() {
-      return this.active && !this.initialized;
+      return !this.isCommunity && this.active && !this.initialized;
     },
     errors() {
       return this.error ? [this.error] : null;
@@ -199,8 +201,11 @@ export default Vue.extend({
     },
   },
   watch: {
-    shouldInitialize() {
-      if (this.shouldInitialize) this.initialize();
+    async shouldInitialize() {
+      if (this.shouldInitialize) {
+        await this.$nextTick();
+        this.initialize();
+      }
     },
   },
   methods: {
@@ -235,6 +240,14 @@ export default Vue.extend({
       this.$nextTick(() => {
         this.tableHeight = this.$refs.bottomPanel.clientHeight;
       });
+
+      if (this.containerResizeObserver) {
+        this.containerResizeObserver.disconnect();
+      }
+      this.containerResizeObserver = new ResizeObserver(() => {
+        this.tableHeight = this.$refs.bottomPanel?.clientHeight || 0;
+      });
+      this.containerResizeObserver.observe(this.$refs.container);
     },
     download(format) {
       this.$refs.table.download(format)
@@ -294,6 +307,14 @@ export default Vue.extend({
           await this.$store.dispatch('tabs/save', this.tab)
           break;
         }
+        case "toggleStatusBarUI": {
+          if (typeof request.args?.force === "boolean") {
+            this.showStatusBarUI = request.args.force;
+          } else {
+            this.showStatusBarUI = !this.showStatusBarUI;
+          }
+          break;
+        }
       }
     },
     async switchPaneFocus(
@@ -336,11 +357,6 @@ export default Vue.extend({
       await this.$nextTick();
       this.initialize();
     }
-
-    this.containerResizeObserver = new ResizeObserver(() => {
-      this.tableHeight = this.$refs.bottomPanel?.clientHeight || 0;
-    });
-    this.containerResizeObserver.observe(this.$refs.container);
   },
   beforeDestroy() {
     if (this.split) {
